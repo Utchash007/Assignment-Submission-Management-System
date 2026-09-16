@@ -36,6 +36,8 @@ public interface TeacherCourseAllocationRepository extends JpaRepository<Teacher
 
     boolean existsByTeacherIdAndCourseId(UUID teacherId, UUID courseId);
 
+    boolean existsByCourseId(UUID courseId);
+
     boolean existsByTeacherIdAndCourseIdAndStatus(UUID teacherId,
                                                   UUID courseId,
                                                   TeacherCourseAllocationStatus status);

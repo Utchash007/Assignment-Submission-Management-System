@@ -3,10 +3,8 @@ package com.asms.springasms.config;
 import com.asms.springasms.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Bean;
+import lombok.RequiredArgsConstructor;import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -14,11 +12,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 @Configuration
 @EnableWebSecurity
@@ -27,6 +25,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final List<RequestMappingHandlerMapping> handlerMappings;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -39,7 +38,21 @@ public class SecurityConfig {
                         .requestMatchers("/", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        // .NET returns 404 (not 401) for unknown routes even without a token:
+                        // routing runs before auth there. Mirror that by checking whether any
+                        // handler mapping matches the request path.
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            boolean noHandler = handlerMappings.stream().allMatch(mapping -> {
+                                try {
+                                    return mapping.getHandler(request) == null;
+                                } catch (Exception e) {
+                                    return true;
+                                }
+                            });
+                            response.setStatus(noHandler
+                                    ? HttpServletResponse.SC_NOT_FOUND
+                                    : HttpServletResponse.SC_UNAUTHORIZED);
+                        })
                         .accessDeniedHandler((request, response, accessDeniedException) ->
                                 response.setStatus(HttpServletResponse.SC_FORBIDDEN)))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

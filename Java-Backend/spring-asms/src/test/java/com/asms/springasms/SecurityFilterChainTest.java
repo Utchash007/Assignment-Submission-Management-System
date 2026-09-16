@@ -16,6 +16,7 @@ import com.asms.springasms.enums.UserRole;
 import com.asms.springasms.repository.UserRepository;
 import com.asms.springasms.security.JwtAuthenticationFilter;
 import com.asms.springasms.security.JwtService;
+import com.asms.springasms.service.AuthService;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,6 +74,11 @@ class SecurityFilterChainTest {
         public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
             return new JwtAuthenticationFilter(jwtService, userRepository);
         }
+
+        @Bean
+        public AuthService authService() {
+            return mock(AuthService.class);
+        }
     }
 
     @Autowired
@@ -83,6 +89,9 @@ class SecurityFilterChainTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AuthService authService;
 
     private MockMvc mockMvc;
 
@@ -120,6 +129,9 @@ class SecurityFilterChainTest {
         user.setActive(true);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(authService.getCurrentUser(userId)).thenReturn(Optional.of(
+                new com.asms.springasms.dto.auth.CurrentUserResponse(
+                        userId, "System Admin", "admin@onnorokom.com", UserRole.Admin)));
 
         String token = jwtService.issueToken(user);
 
