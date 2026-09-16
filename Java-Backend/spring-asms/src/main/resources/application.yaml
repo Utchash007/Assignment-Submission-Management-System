@@ -1,11 +1,6 @@
 spring:
   application:
     name: spring-asms
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
-      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
-      - org.springframework.boot.data.jpa.autoconfigure.JpaRepositoriesAutoConfiguration
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:onnorokom_asm}
     username: ${DB_USER:postgres}
@@ -31,7 +26,7 @@ app:
     issuer: ${JWT_ISSUER:OnnoRokomBackend}
     audience: ${JWT_AUDIENCE:OnnoRokomFrontend}
     signing-key: ${JWT_SIGNING_KEY:}
-    access-token-lifetime-minutes: 120
+    access-token-lifetime-minutes: 60
 
 springdoc:
   swagger-ui:
