@@ -36,13 +36,17 @@ public class JacksonConfig {
 
     @Bean
     JsonMapperBuilderCustomizer instantSerializerCustomizer() {
-        return builder -> builder.addModule(new SimpleModule().addSerializer(Instant.class,
-                new ValueSerializer<Instant>() {
+        return builder -> {
+            // ASP.NET model binding ignores unknown JSON properties instead of 400ing.
+            builder.disable(tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+            builder.addModule(new SimpleModule().addSerializer(Instant.class,
+                    new ValueSerializer<Instant>() {
                     @Override
                     public void serialize(Instant value, JsonGenerator gen,
                                           SerializationContext serializers) {
                         gen.writeString(formatInstant(value));
                     }
                 }));
+        };
     }
 }

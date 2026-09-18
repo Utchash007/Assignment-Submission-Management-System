@@ -13,6 +13,6 @@ public record CreateAssignmentRequest(
         String description,
         @NotNull Instant deadlineAt,
         @NotNull @DecimalMin("0.01") BigDecimal maximumMarks,
-        boolean allowResubmission
+        Boolean allowResubmission
 ) {
 }

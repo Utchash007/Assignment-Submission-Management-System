@@ -112,7 +112,7 @@ public class AssignmentService {
         assignment.setDeadlineAt(request.deadlineAt());
         assignment.setMaximumMarks(request.maximumMarks());
         assignment.setStatus(AssignmentStatus.Draft);
-        assignment.setAllowResubmission(request.allowResubmission());
+        assignment.setAllowResubmission(Boolean.TRUE.equals(request.allowResubmission()));
         return AssignmentResponse.from(assignmentRepository.save(assignment));
     }
 
@@ -134,7 +134,7 @@ public class AssignmentService {
                 ? null : request.description().trim());
         assignment.setDeadlineAt(request.deadlineAt());
         assignment.setMaximumMarks(request.maximumMarks());
-        assignment.setAllowResubmission(request.allowResubmission());
+        assignment.setAllowResubmission(Boolean.TRUE.equals(request.allowResubmission()));
         return AssignmentResponse.from(assignment);
     }
 

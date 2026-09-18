@@ -79,7 +79,7 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User Not Found",
                         "User with ID '" + id + "' was not found."));
-        user.setActive(request.isActive());
+        user.setActive(Boolean.TRUE.equals(request.isActive()));
         user.setAuthVersion(user.getAuthVersion() + 1);
     }
 
