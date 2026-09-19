@@ -5,14 +5,17 @@
 [![React](https://img.shields.io/badge/React%2019-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript%205-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS%20v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![.NET](https://img.shields.io/badge/.NET%2010-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![C#](https://img.shields.io/badge/C%23%2012-239120?style=for-the-badge&logo=csharp&logoColor=white)](https://docs.microsoft.com/en-us/dotnet/csharp/)
+[![Java](https://img.shields.io/badge/Java%2027-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot%204-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Maven](https://img.shields.io/badge/Maven-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL%2016-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
 A modern, role-based educational web application built for schools and colleges to manage curriculum courses, student cohorts, course assignments, submissions, evaluations, and grading workflows.
 
 Developed for the **Assistant Software Engineer Recruitment Project** — *OnnoRokom Projukti Limited*.
+
+> ☕ **Backend**: Spring Boot 4 (Java 27) — ported 1:1 from the original ASP.NET Core implementation with exact API parity, so the frontend works unchanged.
 
 > 🚀 **Live Production Application**: [https://onnorokom-projukti-recruitment-project.onrender.com](https://onnorokom-projukti-recruitment-project.onrender.com)
 > 
@@ -43,16 +46,16 @@ The **Assignment & Submission Management System** streamlines academic workflows
 - **Notifications**: React Hot Toast
 
 ### ⚙️ Backend & API
-- **Framework**: [ASP.NET Core Web API](https://dotnet.microsoft.com/apps/aspnet) (C# 12 / .NET 10)
-- **Architecture**: Clean Service-Repository & Unit of Work pattern
-- **API Style**: RESTful API with standard HTTP response codes and ProblemDetails error handling
-- **Interactive OpenAPI Documentation**: Built-in OpenAPI with interactive API Reference portal accessible at `/scalar/v1`, `/swagger`, or root `/`
-- **Security & Hashing**: BCrypt.Net-Next
+- **Framework**: [Spring Boot 4.1](https://spring.io/projects/spring-boot) (Java 27 / Maven)
+- **Architecture**: Service + Spring Data JPA repository layer (`JpaRepository` interfaces with explicit soft-delete predicates, `@Transactional` services)
+- **API Style**: RESTful API with standard HTTP response codes and RFC 7807 error payloads
+- **Interactive OpenAPI Documentation**: springdoc OpenAPI with Swagger UI (JWT Authorize button) at `/swagger-ui.html`
+- **Security & Hashing**: Spring Security + `BCryptPasswordEncoder` (verifies existing BCrypt hashes unchanged)
 
 ### 🗄️ Database & Storage
 - **Database**: [PostgreSQL](https://www.postgresql.org/)
-- **ORM**: Entity Framework Core (EF Core with Npgsql provider)
-- **Migrations**: EF Core Code-First migrations applied with `dotnet ef database update`
+- **ORM**: Hibernate via Spring Data JPA (`ddl-auto: validate` — the schema is created once externally and never auto-migrated)
+- **Seeding**: `DataSeeder` provisions demo accounts and sample data on first boot against an empty database
 - **File Storage**: Relational binary file data (`bytea`) with MIME validation and 10MB upload limits
 
 ---
@@ -67,12 +70,11 @@ graph LR
         Stores --> APIClient["Typed API Client Layer"]
     end
 
-    subgraph Backend["Backend Architecture (ASP.NET Core Web API)"]
+    subgraph Backend["Backend Architecture (Spring Boot)"]
         Controllers["API Controllers (HTTP / Routing / RBAC)"] --> Services["Domain Business Services"]
-        Services --> UoW["Unit of Work (IUnitOfWork)"]
-        UoW --> Repos["Generic & Specific Repositories"]
-        Repos --> EFCore["Entity Framework Core"]
-        EFCore --> Postgres[("PostgreSQL Database")]
+        Services --> Repos["Spring Data Repositories (JpaRepository)"]
+        Repos --> Hibernate["Hibernate (JPA)"]
+        Hibernate --> Postgres[("PostgreSQL Database")]
     end
 
     APIClient -->|JSON over HTTP / JWT Bearer| Controllers
@@ -80,23 +82,22 @@ graph LR
 
 ### ⚙️ Backend Architectural Patterns
 
-1. **Generic Repository Pattern (`IRepository<TEntity>`)**:
-   - **Purpose**: Provides a standardized contract for common data access operations (`Get`, `GetAll`, `Add`, `Update`, and `Delete`) across all database entities.
-   - **Benefit**: Keeps service persistence access behind a reusable repository abstraction while still allowing services to compose complex LINQ queries from `GetAll()`.
+1. **Spring Data Repositories (`JpaRepository<Entity, UUID>`)**:
+   - **Purpose**: Provides derived queries (`findByEmailIgnoreCase`, `existsByCodeIgnoreCase`) plus explicit `@Query` methods for roster, scoping, and soft-delete (`deletedAt is null`) predicates.
+   - **Benefit**: Keeps service persistence access behind a reusable repository abstraction while composing complex JPQL (including `fetch join` counterparts of eager loads) in one place.
 
-2. **Repository Abstraction (`EFRepository<TEntity>`)**:
-   - **Purpose**: Implements the generic repository over the shared EF Core `AppDbContext`; entity keys are `Guid` values in this project.
-   - **Benefit**: Prevents services from accessing `AppDbContext` directly and centralizes entity tracking operations.
+2. **Transactional Services (`@Service` + `@Transactional`)**:
+   - **Purpose**: One service per domain owns business rules, deadline checks, role constraints, and grading validations; bulk operations (e.g. batch→course enrollment) commit in a single transaction.
+   - **Benefit**: Controllers stay thin; managed entities persist via dirty checking without explicit save calls.
 
-3. **Unit of Work Pattern (`IUnitOfWork` / `UnitOfWork`)**:
-   - **Purpose**: Exposes an explicit `XRepo` property for every entity repository, with all repositories sharing one scoped `AppDbContext` instance.
-   - **Benefit**: Services use `IUnitOfWork.UserRepo`, `IUnitOfWork.CourseRepo`, `IUnitOfWork.AssignmentRepo`, and so on, then persist tracked changes through one `SaveChangesAsync()` call.
-   - **Scope**: The current Unit of Work does not expose explicit `BeginTransaction`, `Commit`, or `Rollback` methods; EF Core handles the normal transaction for an individual `SaveChangesAsync()` operation.
+3. **Stateless JWT Security (Spring Security)**:
+   - **Purpose**: A `JwtAuthenticationFilter` validates HS256 tokens per request (signature, issuer/audience, lifetime, user active flag, `AuthVersion` counter) and exposes a `CurrentUser` principal; method-level RBAC runs through `@PreAuthorize("hasRole('...')")`.
+   - **Benefit**: Password changes instantly revoke issued tokens; framework 401/403 responses stay bodyless as the frontend expects.
 
-4. **Layered Service-Oriented Architecture**:
-   - **Controllers**: Handle HTTP verbs, route bindings, model validation, and map results to standard HTTP status codes (`200 OK`, `201 Created`, `204 NoContent`, `400 BadRequest`, `401 Unauthorized`, `403 Forbidden`, `404 NotFound`).
+4. **Layered Controllers + Global Exception Handling**:
+   - **Controllers**: Handle HTTP verbs, route bindings, Bean Validation (`@Valid`), and map results to standard HTTP status codes (`200 OK`, `201 Created`, `204 NoContent`, `400 BadRequest`, `401 Unauthorized`, `403 Forbidden`, `404 NotFound`).
    - **Business Services**: Enforce institutional rules, deadline checks, role constraints, and qualitative feedback validations.
-    - **Global Exception Middleware**: Handles exceptions raised during controller/service execution and formats uniform RFC 7807 `ProblemDetails` error payloads.
+   - **Global Exception Handler**: Converts service-thrown exceptions into uniform RFC 7807 error payloads (`{title, status, detail}`, PascalCase validation keys) matching the original API contract byte-for-byte.
 
 ---
 
@@ -120,11 +121,11 @@ graph LR
 
 ## 🔐 Authentication & Authorization
 
-- **Authentication Scheme**: JWT (JSON Web Token) Bearer authentication.
+- **Authentication Scheme**: JWT (JSON Web Token) Bearer authentication (HS256, 60-minute lifetime, claims `nameid`/`email`/`role`/`auth_version`).
 - **Token Delivery**: Attached in `Authorization: Bearer <token>` HTTP headers.
-- **Role-Based Access Control (RBAC)**: Enforced via ASP.NET Core `[Authorize(Roles = "...")]` attributes on backend endpoints and `AuthGuard` route wrappers in the Next.js frontend.
+- **Role-Based Access Control (RBAC)**: Enforced via Spring Security `@PreAuthorize("hasRole('...')")` annotations on backend endpoints and `AuthGuard` route wrappers in the Next.js frontend.
 - **Token Invalidation**: User entity includes an `AuthVersion` counter. Password changes increment the version, immediately invalidating legacy tokens.
-- **Password Security**: Passwords hashed using industry-standard `BCrypt`.
+- **Password Security**: Passwords hashed using industry-standard `BCrypt` (`BCryptPasswordEncoder`).
 
 ---
 
@@ -191,28 +192,32 @@ graph TD
 ## 📁 Repository Structure
 
 ```
-├── Backend/
-│   └── OnnorokomBackend/
-│       ├── Controllers/          # 10 ASP.NET Core REST API Controllers (50 endpoints)
-│       │   ├── AuthController.cs
-│       │   ├── UsersController.cs
-│       │   ├── AcademicTermsController.cs
-│       │   ├── BatchesController.cs
-│       │   ├── CoursesController.cs
-│       │   ├── CourseEnrollmentsController.cs
-│       │   ├── TeacherAllocationsController.cs
-│       │   ├── AssignmentsController.cs
-│       │   ├── SubmissionsController.cs
-│       │   └── SubmissionAttachmentsController.cs
-│       ├── DbContext/            # EF Core AppDbContext & Entity Configurations
-│       ├── Migrations/           # Database Migrations
-│       ├── Models/               # Domain Entities, DTOs & Enums
-│       ├── Repository/           # Generic Repository Layer
-│       ├── UnitOfWork/           # Unit of Work implementation
-│       ├── Services/             # Business Logic Services
-│       ├── Seed/                 # Database Seeder (Demo accounts & sample data)
-│       ├── Middleware/           # Global Exception & ProblemDetails Middleware
-│       └── Program.cs            # App configuration, DI container & Swagger
+├── Java-Backend/
+│   └── spring-asms/                # Spring Boot 4.1 / Java 27 / Maven backend
+│       ├── src/main/java/com/asms/springasms/
+│       │   ├── controller/         # 11 REST controllers (50 endpoints)
+│       │   │   ├── AuthController.java
+│       │   │   ├── UsersController.java
+│       │   │   ├── AcademicTermsController.java
+│       │   │   ├── BatchesController.java
+│       │   │   ├── CoursesController.java
+│       │   │   ├── CourseEnrollmentsController.java
+│       │   │   ├── TeacherCourseAllocationsController.java
+│       │   │   ├── AssignmentsController.java
+│       │   │   ├── SubmissionsController.java
+│       │   │   └── SubmissionAttachmentsController.java
+│       │   ├── service/            # 10 transactional business services
+│       │   ├── repository/         # 10 Spring Data JpaRepository interfaces
+│       │   ├── entity/             # 10 JPA entities (quoted PascalCase columns)
+│       │   ├── enums/              # 5 PascalCase enums (DB + JSON parity)
+│       │   ├── dto/                # Immutable request/response records
+│       │   ├── security/           # JwtService, JwtAuthenticationFilter, CurrentUser
+│       │   ├── config/             # SecurityConfig, OpenAPI/JWT config, JacksonConfig
+│       │   ├── exception/          # GlobalExceptionHandler (RFC 7807 parity)
+│       │   └── seed/               # DataSeeder (demo accounts & sample data)
+│       ├── src/main/resources/application.yaml
+│       ├── src/test/               # 139 unit + slice tests (Mockito/MockMvc)
+│       └── pom.xml
 │
 ├── Frontend/
 │   ├── src/
@@ -254,9 +259,9 @@ graph TD
 ## 🚀 Local Setup & Installation Instructions
 
 ### Prerequisites
-- [.NET 10.0 SDK](https://dotnet.microsoft.com/download)
+- [Java 27+ (Temurin/OpenJDK)](https://adoptium.net/) (`JAVA_HOME` must point at it)
 - [Node.js 20+ and npm](https://nodejs.org/)
-- [PostgreSQL 14+](https://www.postgresql.org/download/)
+- [PostgreSQL 14+](https://www.postgresql.org/download/) (or a hosted instance)
 
 ---
 
@@ -267,32 +272,29 @@ graph TD
    ```sql
    CREATE DATABASE onnorokom_asm;
    ```
+   Apply the schema once (the backend runs `validate`-only and never migrates).
 
 2. **Configure Environment / Connection String**:
-   Navigate to `Backend/OnnorokomBackend/`:
+   Navigate to `Java-Backend/spring-asms/`:
    ```bash
-   cd Backend/OnnorokomBackend
+   cd Java-Backend/spring-asms
    ```
-   Create or update `.env` (or `appsettings.json`):
+   Create a `.env` file (see root `.env.example` for the Docker template):
    ```env
-   DB_CONN="Host=localhost;Port=5432;Database=onnorokom_asm;Username=postgres;Password=your_password;SSL Mode=Prefer"
-   Jwt__Issuer=OnnoRokomBackend
-   Jwt__Audience=OnnoRokomFrontend
-   Jwt__SigningKey=your-super-secret-signing-key-with-sufficient-length-2026
+   SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/onnorokom_asm"
+   DB_USER=postgres
+   DB_PASSWORD=your_password
+   JWT_SIGNING_KEY=your-super-secret-signing-key-with-sufficient-length-2026
    ```
+   (`DB_CONN` in Npgsql format is also accepted and converted automatically.)
 
-3. **Apply EF Core Migrations**:
-   ```bash
-   dotnet ef database update
+3. **Run the Backend API** (startup seeding provisions demo accounts into an empty database):
+   ```powershell
+   $env:JAVA_HOME = "<path-to-jdk-27>"
+   .\mvnw.cmd spring-boot:run
    ```
-
-4. **Run the Backend API**:
-   ```bash
-   dotnet run
-   ```
-   The backend API will start on `http://localhost:5000` (or `https://localhost:5001`).
-    - Interactive API Reference: `http://localhost:5000/scalar/v1` (the `/swagger` path redirects there)
-    - Apply migrations before starting the API; startup seeding provisions demo accounts only after the schema exists.
+   The backend API will start on `http://localhost:5000`.
+    - Interactive API documentation (Swagger UI with JWT Authorize button): `http://localhost:5000/swagger-ui.html`
 
 ---
 
@@ -338,9 +340,10 @@ npm run build   # Validates Next.js production build and TypeScript types
 ```
 
 ### Backend Build Verification
-```bash
-cd Backend/OnnorokomBackend
-dotnet build    # Verifies compilation across all models, services, and controllers
+```powershell
+cd Java-Backend/spring-asms
+$env:JAVA_HOME = "<path-to-jdk-27>"
+.\mvnw.cmd test    # 139 unit + slice tests (Mockito/MockMvc, no database needed)
 ```
 
 ---
