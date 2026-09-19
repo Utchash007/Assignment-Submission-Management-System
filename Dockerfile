@@ -27,6 +27,10 @@ COPY Frontend/ .
 RUN mkdir -p public
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Bake the /api rewrite target at build time (rewrites() is evaluated during
+# `next build`, so runtime env can't change it). Backend always listens on
+# loopback :5000 inside the container (see CMD below).
+ENV INTERNAL_BACKEND_URL=http://127.0.0.1:5000
 RUN npm run build
 
 # ============================================================
@@ -67,5 +71,8 @@ ENV PORT=10000
 
 EXPOSE 10000 3000 5000
 
-# Direct inline command: binds Next.js to 0.0.0.0:$PORT so Render can route traffic
-CMD ["/bin/bash", "-c", "cd /app/backend && java $JAVA_OPTS -jar app.jar & cd /app/frontend && HOSTNAME=0.0.0.0 PORT=${PORT:-10000} node server.js"]
+# Direct inline command: backend is pinned to loopback :5000 (the /api rewrite
+# target baked above); only Next.js binds Render's $PORT. Backend must NOT read
+# $PORT — application.yaml uses server.port=${PORT:5000}, so both processes
+# would otherwise fight over 10000 and the backend dies with PortInUse.
+CMD ["/bin/bash", "-c", "cd /app/backend && PORT=5000 java $JAVA_OPTS -jar app.jar & cd /app/frontend && HOSTNAME=0.0.0.0 PORT=${PORT:-10000} node server.js"]
