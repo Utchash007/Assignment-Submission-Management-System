@@ -361,9 +361,4 @@ $env:JAVA_HOME = "<path-to-jdk-27>"
 4. **Submissions Close Action**:
    - Teachers can execute `closeSubmissions` at any point to lock submissions for an assignment.
 5. **Student Roll Support**:
-   - User entity includes a dedicated `roll` field displayed on rosters, submission grading tables, and profiles.
-
----
-
-## 📄 License & Attribution
-Designed and built for the **OnnoRokom Projukti Limited** recruitment evaluation process.
+    - User entity includes a dedicated `roll` field displayed on rosters, submission grading tables, and profiles.
