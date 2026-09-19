@@ -1,7 +1,7 @@
 # ============================================================
-# Stage 1: Build Spring Boot Backend (JDK 27, same as dev)
+# Stage 1: Build Spring Boot Backend (JDK 25 LTS)
 # ============================================================
-FROM eclipse-temurin:27-jdk AS backend-builder
+FROM eclipse-temurin:25-jdk AS backend-builder
 WORKDIR /build/backend
 
 # Copy wrapper + pom first for readability (single build step keeps
@@ -32,7 +32,7 @@ RUN npm run build
 # ============================================================
 # Stage 3: Unified Production Runtime (Backend + Frontend)
 # ============================================================
-FROM eclipse-temurin:27-jre AS runner
+FROM eclipse-temurin:25-jre AS runner
 WORKDIR /app
 
 # Install Node.js runtime for Next.js
