@@ -32,7 +32,10 @@ Frontend/.env.local
 Backend/OnnorokomBackend/.env
 !.env.example
 !Frontend/.env.example
-!Backend/OnnorokomBackend/.env.example
 
-# Generated EF Core migrations
-Backend/OnnorokomBackend/Migrations/
+# Retired .NET backend — local reference only, never in the repo again
+Backend/
+
+# Local-only migration guides (kept on disk, not in the repo)
+Java-Backend/0[1-9]-*.md
+Java-Backend/10-*.md

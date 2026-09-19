@@ -25,11 +25,15 @@ services:
       - onnorokom-net
 
   # ----------------------------------------------------
-  # 2. ASP.NET Core Backend Web API
+  # 2. Spring Boot Backend Web API
+  # NOTE: the backend runs ddl-auto=validate, so a FRESH postgres needs the
+  # schema created once first (apply Backend EF migration SQL or point at an
+  # existing database). On first boot with empty tables, DataSeeder inserts
+  # the demo accounts and sample data automatically.
   # ----------------------------------------------------
   backend:
     build:
-      context: ./Backend/OnnorokomBackend
+      context: ./Java-Backend/spring-asms
       dockerfile: Dockerfile
     container_name: onnorokom-backend
     restart: unless-stopped
@@ -37,12 +41,15 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DB_CONN: ${DB_CONN:?DB_CONN connection string must be provided in .env}
-      Jwt__Issuer: ${JWT_ISSUER:-OnnoRokomBackend}
-      Jwt__Audience: ${JWT_AUDIENCE:-OnnoRokomFrontend}
-      Jwt__SigningKey: ${JWT_SIGNING_KEY:?JWT_SIGNING_KEY must be provided in .env}
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      ASPNETCORE_URLS: http://+:${BACKEND_PORT:-5000}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL must be provided in .env}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Database password must be set in .env}
+      JWT_ISSUER: ${JWT_ISSUER:-OnnoRokomBackend}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-OnnoRokomFrontend}
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:?JWT_SIGNING_KEY must be provided in .env}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      JAVA_OPTS: ${JAVA_OPTS:--Xmx384m}
+      PORT: 5000
     ports:
       - "${BACKEND_PORT:-5000}:5000"
     networks:

@@ -1,0 +1,21 @@
+# Keep secrets, local state, and build junk out of image layers.
+.git/
+.idea/
+.vs/
+.kiro/
+.agents/
+node_modules/
+**/node_modules/
+**/target/
+.next/
+Frontend/.next/
+**/.env
+**/.env.local
+opencode.json*
+error.txt
+skills-lock.json
+*.md
+Java-Backend/contract-snapshots*/
+Dockerfile
+.dockerignore
+docker-compose.yml

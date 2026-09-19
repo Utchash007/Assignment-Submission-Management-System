@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: spring-asms
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:onnorokom_asm}}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+
+server:
+  port: ${PORT:5000}
+
+app:
+  jwt:
+    issuer: ${JWT_ISSUER:${Jwt__Issuer:OnnoRokomBackend}}
+    audience: ${JWT_AUDIENCE:${Jwt__Audience:OnnoRokomFrontend}}
+    signing-key: ${JWT_SIGNING_KEY:${Jwt__SigningKey:}}
+    access-token-lifetime-minutes: 60
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
