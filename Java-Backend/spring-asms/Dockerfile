@@ -7,11 +7,11 @@ WORKDIR /build
 COPY mvnw mvnw.cmd pom.xml ./
 COPY .mvn ./.mvn
 COPY src ./src
-RUN chmod +x mvnw && ./mvnw -q package -DskipTests \
+RUN mkdir -p /app && chmod +x mvnw && ./mvnw -q package -DskipTests \
  && cp target/spring-asms-*.jar /app/app.jar
 
 # ============================================================
-# Stage 2: Production runtime (JRE 27)
+# Stage 2: Production runtime (JRE 25)
 # ============================================================
 FROM eclipse-temurin:25-jre AS runner
 WORKDIR /app/backend
