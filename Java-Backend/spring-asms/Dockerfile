@@ -1,7 +1,7 @@
 # ============================================================
-# Stage 1: Build Spring Boot backend (JDK 27, same as dev)
+# Stage 1: Build Spring Boot backend (JDK 25 LTS)
 # ============================================================
-FROM eclipse-temurin:27-jdk AS builder
+FROM eclipse-temurin:25-jdk AS builder
 WORKDIR /build
 
 COPY mvnw mvnw.cmd pom.xml ./
@@ -13,7 +13,7 @@ RUN chmod +x mvnw && ./mvnw -q package -DskipTests \
 # ============================================================
 # Stage 2: Production runtime (JRE 27)
 # ============================================================
-FROM eclipse-temurin:27-jre AS runner
+FROM eclipse-temurin:25-jre AS runner
 WORKDIR /app/backend
 
 COPY --from=builder /app/app.jar ./app.jar
