@@ -36,3 +36,7 @@ Backend/OnnorokomBackend/.env
 
 # Generated EF Core migrations
 Backend/OnnorokomBackend/Migrations/
+
+# Local-only migration guides (kept on disk, not in the repo)
+Java-Backend/0[1-9]-*.md
+Java-Backend/10-*.md
