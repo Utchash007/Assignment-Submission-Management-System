@@ -1,17 +1,16 @@
 # ============================================================
-# Stage 1: Build ASP.NET Core Backend
+# Stage 1: Build Spring Boot Backend (JDK 27, same as dev)
 # ============================================================
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-builder
-WORKDIR /src
+FROM eclipse-temurin:27-jdk AS backend-builder
+WORKDIR /build/backend
 
-# Copy backend project and restore dependencies
-COPY Backend/OnnorokomBackend/OnnoRokomBackend.csproj Backend/OnnorokomBackend/
-RUN dotnet restore Backend/OnnorokomBackend/OnnoRokomBackend.csproj
-
-# Copy full backend source and publish
-COPY Backend/OnnorokomBackend/ Backend/OnnorokomBackend/
-WORKDIR /src/Backend/OnnorokomBackend
-RUN dotnet publish OnnoRokomBackend.csproj -c Release -o /app/backend /p:UseAppHost=false
+# Copy wrapper + pom first for readability (single build step keeps
+# cloud rebuilds robust; tests run locally, so the image skips them).
+COPY Java-Backend/spring-asms/mvnw Java-Backend/spring-asms/mvnw.cmd Java-Backend/spring-asms/pom.xml ./
+COPY Java-Backend/spring-asms/.mvn ./.mvn
+COPY Java-Backend/spring-asms/src ./src
+RUN mkdir -p /app && chmod +x mvnw && ./mvnw -q package -DskipTests \
+ && cp target/spring-asms-*.jar /app/backend.jar
 
 # ============================================================
 # Stage 2: Build Next.js 15 Frontend
@@ -33,7 +32,7 @@ RUN npm run build
 # ============================================================
 # Stage 3: Unified Production Runtime (Backend + Frontend)
 # ============================================================
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runner
+FROM eclipse-temurin:27-jre AS runner
 WORKDIR /app
 
 # Install Node.js runtime for Next.js
@@ -44,17 +43,18 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy backend published binaries
-COPY --from=backend-builder /app/backend /app/backend
+# Copy backend jar
+COPY --from=backend-builder /app/backend.jar /app/backend/app.jar
 
 # Copy frontend standalone output & assets
 COPY --from=frontend-builder /app/public /app/frontend/public
 COPY --from=frontend-builder /app/.next/standalone /app/frontend/
 COPY --from=frontend-builder /app/.next/static /app/frontend/.next/static
 
-# Environment settings
-ENV ASPNETCORE_URLS=http://127.0.0.1:5000
-ENV ASPNETCORE_ENVIRONMENT=Production
+# Environment settings (Render injects PORT; DB/JWT secrets come from
+# the Render dashboard — see Java-Backend/08-migration-checklist.md Phase 8)
+ENV SPRING_PROFILES_ACTIVE=prod
+ENV JAVA_OPTS=-Xmx384m
 ENV INTERNAL_BACKEND_URL=http://127.0.0.1:5000
 ENV NEXT_PUBLIC_API_URL=http://127.0.0.1:5000
 ENV NODE_ENV=production
@@ -64,4 +64,4 @@ ENV PORT=10000
 EXPOSE 10000 3000 5000
 
 # Direct inline command: binds Next.js to 0.0.0.0:$PORT so Render can route traffic
-CMD ["/bin/bash", "-c", "cd /app/backend && ASPNETCORE_URLS=http://127.0.0.1:5000 dotnet OnnoRokomBackend.dll & cd /app/frontend && HOSTNAME=0.0.0.0 PORT=${PORT:-10000} node server.js"]
+CMD ["/bin/bash", "-c", "cd /app/backend && java $JAVA_OPTS -jar app.jar & cd /app/frontend && HOSTNAME=0.0.0.0 PORT=${PORT:-10000} node server.js"]
