@@ -1,0 +1,26 @@
+# ============================================================
+# Stage 1: Build Spring Boot backend (JDK 27, same as dev)
+# ============================================================
+FROM eclipse-temurin:27-jdk AS builder
+WORKDIR /build
+
+COPY mvnw mvnw.cmd pom.xml ./
+COPY .mvn ./.mvn
+COPY src ./src
+RUN chmod +x mvnw && ./mvnw -q package -DskipTests \
+ && cp target/spring-asms-*.jar /app/app.jar
+
+# ============================================================
+# Stage 2: Production runtime (JRE 27)
+# ============================================================
+FROM eclipse-temurin:27-jre AS runner
+WORKDIR /app/backend
+
+COPY --from=builder /app/app.jar ./app.jar
+
+EXPOSE 5000
+ENV PORT=5000
+ENV JAVA_OPTS=-Xmx384m
+ENV SPRING_PROFILES_ACTIVE=prod
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
