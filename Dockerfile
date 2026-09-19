@@ -54,7 +54,11 @@ COPY --from=frontend-builder /app/.next/static /app/frontend/.next/static
 # Environment settings (Render injects PORT; DB/JWT secrets come from
 # the Render dashboard — see Java-Backend/08-migration-checklist.md Phase 8)
 ENV SPRING_PROFILES_ACTIVE=prod
-ENV JAVA_OPTS=-Xmx384m
+# Render free tier has 512MB RAM shared by both processes: keep the JVM small
+# (heap 256m + metaspace cap) and cap Node too, or the backend gets OOM-killed
+# while the frontend keeps serving (dead /api/* with a live site).
+ENV JAVA_OPTS=-Xmx256m -XX:MaxMetaspaceSize=128m
+ENV NODE_OPTIONS=--max-old-space-size=256
 ENV INTERNAL_BACKEND_URL=http://127.0.0.1:5000
 ENV NEXT_PUBLIC_API_URL=http://127.0.0.1:5000
 ENV NODE_ENV=production
